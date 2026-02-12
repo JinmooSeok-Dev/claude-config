@@ -1,0 +1,21 @@
+# Credentials & secrets
+.credentials.json
+
+# Session data (large, transient)
+history.jsonl
+cache/
+debug/
+file-history/
+paste-cache/
+plans/
+projects/
+session-env/
+shell-snapshots/
+stats-cache.json
+statsig/
+tasks/
+telemetry/
+todos/
+
+# Plugins (installed separately, large)
+plugins/

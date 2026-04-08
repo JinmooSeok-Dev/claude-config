@@ -1,6 +1,9 @@
 # Credentials & secrets
 .credentials.json
 
+# Local settings (personal overrides)
+settings.local.json
+
 # Session data (large, transient)
 history.jsonl
 cache/
@@ -16,6 +19,12 @@ statsig/
 tasks/
 telemetry/
 todos/
+
+# Transient state
+.update.lock
+mcp-needs-auth-cache.json
+backups/
+sessions/
 
 # Plugins (installed separately, large)
 plugins/

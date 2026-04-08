@@ -68,7 +68,8 @@ cp ~/.claude.bak/.credentials.json ~/.claude/
 | `analyze-oss.md` | `/user:analyze-oss` | 오픈소스 코드베이스 분석 |
 | `debug.md` | `/user:debug` | 체계적 디버깅 프로세스 |
 | `implement.md` | `/user:implement` | TDD 기반 기능 구현 |
-| `logging-work.md` | `/user:logging-work` | WORKLOG.md에 작업 기록 |
+| `logging-work.md` | `/user:logging-work` | WORKLOG.md에 작업 완료 보고서 기록 |
+| `til.md` | `/user:til` | TIL.md에 발견/조사 내용 간결히 기록 |
 
 ### skills/ — Claude 자동 호출 (13개)
 

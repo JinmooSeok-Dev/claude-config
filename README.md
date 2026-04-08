@@ -70,6 +70,7 @@ cp ~/.claude.bak/.credentials.json ~/.claude/
 | `implement.md` | `/user:implement` | TDD 기반 기능 구현 |
 | `logging-work.md` | `/user:logging-work` | WORKLOG.md에 작업 완료 보고서 기록 |
 | `til.md` | `/user:til` | TIL.md에 발견/조사 내용 간결히 기록 |
+| `sync-docs.md` | `/user:sync-docs` | 코드 변경 시 관련 문서 업데이트 확인/제안 |
 
 ### skills/ — Claude 자동 호출 (13개)
 

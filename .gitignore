@@ -33,3 +33,11 @@ plugins/
 commands/autoresearch.md
 hooks/autoresearch-context.sh
 skills/autoresearch
+
+# 외부 도구 심볼릭 링크 (~/.git-ai 등 머신 종속)
+skills/ask
+skills/git-ai-search
+skills/prompt-analysis
+
+# Claude Code 자체 생성 머신 종속 파일
+policy-limits.json

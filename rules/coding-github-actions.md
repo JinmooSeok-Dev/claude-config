@@ -212,6 +212,97 @@ jobs:
 | 멀티라인 output | 잘림/깨짐 | EOF delimiter 패턴 |
 | `if:` 조건에서 따옴표 누락 | 타입 비교 오류 | `if: steps.x.outputs.y == 'value'` |
 
+## Workflow Architecture Principles
+
+### 역할 구분: 오케스트레이터 vs Reusable
+
+| 역할 | 대상 | 핵심 책임 |
+|------|------|----------|
+| **오케스트레이터** | 직접 trigger되는 workflow (`schedule`, `push`, `workflow_dispatch`) | 모든 환경 변수/secrets를 수집하여 reusable에 명시적으로 전달 |
+| **Reusable workflow** (`workflow_call`) | `_` prefix 권장 | 자신의 로직에 필요한 모든 것을 input으로 받음. `vars.*` 직접 참조 금지 |
+| **Composite action** | `.github/actions/` 하위 | 동일 원칙. `env:` block을 통해 input 전달 |
+
+### Reusable / Composite Action 인터페이스 규칙
+
+**`vars.*` / `secrets.*` 직접 참조 금지** — reusable은 어떤 환경에서 호출될지 모른다. 오케스트레이터가 필요한 값을 input으로 결정하고 전달한다:
+
+```yaml
+# 나쁨: reusable 내부에서 repository variable 직접 참조
+env:
+  VM_IP: ${{ inputs.vm_ip || vars.EXT_WORKER2_VM_IP }}  # vars.*는 오케스트레이터에서 처리
+
+# 좋음: oker스트레이터가 fallback까지 해결해서 전달
+# (오케스트레이터에서) vm_ip: ${{ needs.install.outputs.vm_ip || vars.EXT_WORKER2_VM_IP }}
+# (reusable에서)      VM_IP: ${{ inputs.vm_ip }}
+```
+
+**Input 설계 원칙:**
+- 이름은 도메인 일반화 — 특정 인물/환경에 coupling 금지 (`ghcr_jinmoo_username` ❌ → `ghcr_username` ✅)
+- required vs optional 구분 명확히, optional에는 합리적인 default
+- 불필요한 input 금지 — 로직에 실제로 쓰이는 것만
+
+**Output 설계 원칙:**
+- caller가 실제로 사용하는 값만 output으로 노출
+- 내부 디버그 값, 중간 결과는 output 불필요
+
+**Shell injection 방지** — composite action의 `run:` 블록에서 `${{ inputs.* }}`를 직접 삽입하지 않고 `env:` block을 통해 환경변수로 전달:
+
+```yaml
+# 나쁨: shell injection 가능
+- run: |
+    echo "${{ inputs.version }}"
+    [[ "${{ inputs.flag }}" == "true" ]] && do_something
+
+# 좋음: env block을 통한 안전한 전달
+- env:
+    VERSION: ${{ inputs.version }}
+    FLAG: ${{ inputs.flag }}
+  run: |
+    echo "${VERSION}"
+    [[ "${FLAG}" == "true" ]] && do_something
+```
+
+### 오케스트레이터의 책임: 통합 의존성 관리
+
+오케스트레이터는 **한 곳에서 모든 환경 의존성을 해결**하고 downstream에 명시적으로 전달한다. `vars.*`, cluster 선택, kubeconfig 출처 결정은 모두 오케스트레이터 레벨에서 처리한다:
+
+```yaml
+jobs:
+  test:
+    uses: ./.github/workflows/_integration-test.yml
+    with:
+      vm_ip: ${{ needs.install.outputs.vm_ip || vars.EXT_WORKER2_VM_IP }}  # 오케스트레이터가 결정
+      kubeconfig_artifact_run_id: ${{ needs.install.result == 'success' && github.run_id || '' }}
+      notify_slack: false     # 오케스트레이터가 자체 notify 처리 시 false
+    secrets:
+      KUBECONFIG_B64: ${{ secrets.EXT_WORKER2_KUBECONFIG_B64 }}  # 어떤 secret 쓸지 오케스트레이터가 결정
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+```
+
+`secrets: inherit`은 편리하지만 reusable의 secrets 의존성이 불투명해진다. 명시적 전달을 권장하나, 많은 secrets가 필요한 경우 `secrets: inherit` + reusable 내 명시적 `secrets:` 선언으로 타협한다.
+
+### Skipped Job을 활용한 선택적 실행 패턴
+
+`if:` 조건으로 job을 skip하면 dependent job의 `success()`에서 skipped를 success로 처리한다. 이를 이용해 optional 단계를 구현한다:
+
+```yaml
+install:
+  if: inputs.provision_sno       # false → skipped (treated as success by dependents)
+  uses: ./.github/workflows/_sno-lifecycle.yml
+
+test:
+  needs: [prepare, install]      # install이 skipped여도 test는 실행됨
+  env:
+    # skipped job의 outputs는 빈 값 → || 로 fallback
+    VM_IP: ${{ needs.install.outputs.vm_ip || vars.EXT_VM_IP }}
+
+setup-cluster-access:
+  with:
+    kubeconfig-b64: ${{ secrets.EXT_KUBECONFIG_B64 }}   # static mode fallback
+    kubeconfig-artifact-run-id: ${{ needs.install.result == 'success' && github.run_id || '' }}
+    # install 성공 → dynamic mode, skipped/failed → static mode
+```
+
 ## Git 규칙
 - Conventional Commits: `feat:`, `fix:`, `chore:`, `docs:` prefix
 - Squash merge 권장 (깔끔한 main history)

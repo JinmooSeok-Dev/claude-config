@@ -1,0 +1,114 @@
+name: validate
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install lint tools
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq shellcheck jq
+
+      - name: Validate JSON files
+        run: |
+          set -euo pipefail
+          fail=0
+          for f in settings.json .claude-plugin/marketplace.json; do
+            if [ -f "$f" ]; then
+              if jq . "$f" >/dev/null; then
+                echo "OK: $f"
+              else
+                echo "FAIL: $f"
+                fail=1
+              fi
+            fi
+          done
+          exit "$fail"
+
+      - name: Shellcheck on hooks
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(hooks/*.sh)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "no hook scripts to check"
+            exit 0
+          fi
+          shellcheck "${files[@]}"
+
+      - name: Validate skill front-matter
+        run: |
+          set -euo pipefail
+          fail=0
+          shopt -s nullglob
+          for f in skills/*/SKILL.md; do
+            # 첫 줄이 '---' 이고, name/description 필드가 있어야 함
+            if ! head -1 "$f" | grep -q '^---$'; then
+              echo "FAIL (no frontmatter): $f"
+              fail=1
+              continue
+            fi
+            if ! grep -qE '^name:[[:space:]]+\S' "$f"; then
+              echo "FAIL (no name field): $f"
+              fail=1
+            fi
+            if ! grep -qE '^description:[[:space:]]+\S|^description:[[:space:]]*>$' "$f"; then
+              echo "FAIL (no description field): $f"
+              fail=1
+            fi
+            [ "$fail" = "0" ] && echo "OK: $f"
+          done
+          exit "$fail"
+
+      - name: Validate rule front-matter (paths)
+        run: |
+          set -euo pipefail
+          fail=0
+          shopt -s nullglob
+          for f in rules/coding-*.md; do
+            if ! head -1 "$f" | grep -q '^---$'; then
+              echo "FAIL (no frontmatter): $f"
+              fail=1
+              continue
+            fi
+            if ! grep -qE '^paths:' "$f"; then
+              echo "FAIL (no paths field): $f"
+              fail=1
+            fi
+            [ "$fail" = "0" ] && echo "OK: $f"
+          done
+          exit "$fail"
+
+      - name: Hooks must be executable
+        run: |
+          set -euo pipefail
+          fail=0
+          shopt -s nullglob
+          for f in hooks/*.sh; do
+            if [ -x "$f" ]; then
+              echo "OK (exec): $f"
+            else
+              echo "FAIL (not executable): $f"
+              fail=1
+            fi
+          done
+          exit "$fail"

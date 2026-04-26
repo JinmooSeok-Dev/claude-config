@@ -22,6 +22,38 @@
 - **CI/CD**: GitHub Actions, Shell scripting, 자동화 파이프라인
 - **기타**: 수학, 과학, 경제, 양자 컴퓨팅 등 다양한 분야 학습
 
+## Tech Baseline (프로젝트별 override 가능)
+- **Go** ≥ 1.21 — `go test ./...` + ginkgo (operator)
+- **Python** 3.10–3.13 — pytest, ruff + mypy (`coding-python-ml.md` 는 ML 도메인 전용)
+- **Node** 18+ (필요 시)
+- **Rust** stable — `cargo fmt && cargo clippy -- -D warnings`
+- 프로젝트 고유 baseline 은 해당 `<repo>/CLAUDE.md` 의 "Override" 섹션에 명시
+
+## Test Strategy
+- Go: `go test ./...`, operator 는 ginkgo + envtest, table-driven 우선
+- Python: pytest + parametrize, fixture scope 명시
+- Shell: shellcheck + bats-core
+- Ansible: ansible-lint + molecule (가능 시)
+- 통합 테스트가 mock 보다 우선 (실제 동작 검증)
+
+## Branch & Commit Naming
+- Branch: `feat/<topic>`, `fix/<topic>`, `chore/<topic>`, `docs/<topic>`
+- Commit: Conventional Commits — `feat(scope): ...`, `fix(scope): ...`
+- DCO signoff 필요 repo (예: llm-d 계열) 는 `git commit -s`
+
+## PR 본문 표준
+- **Why**: 왜 이 변경이 필요한가 (배경/문제)
+- **What changed**: 무엇이 바뀌었는가 (요점만)
+- **How to verify**: 어떻게 검증하나 (재현 단계, 기대 결과)
+- **Rollback**: 문제 시 되돌리는 방법
+- 상세 워크플로우는 `commands/pr.md` 참조
+
+## Document Type 분기
+- **Reference** (ARCHITECTURE/DESIGN/PROPOSAL): Top-down 강제 — Executive Summary → Problem → Scenario → Design → Architecture
+- **Operational** (GUIDE/SETUP/TROUBLESHOOTING/RUNBOOK): Task-first — 사전요구 → 빠른시작 → 단계별 → 트러블슈팅
+- **Archive**: `archived/` 폴더 + historical note blockquote
+- 상세 규칙은 `~/.claude/rules/documentation.md` 참조
+
 ## Git
 - 커밋 메시지를 요청 없이 생성하지 않는다
 - force push, reset --hard 등 파괴적 명령 실행 전 반드시 확인한다

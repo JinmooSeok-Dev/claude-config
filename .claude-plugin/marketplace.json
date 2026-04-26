@@ -1,0 +1,21 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "jinmoo-personal",
+  "description": "JinmooSeok 개인 plugin 모음 (autoresearch 등)",
+  "owner": {
+    "name": "JinmooSeok",
+    "url": "https://github.com/JinmooSeok-Dev"
+  },
+  "plugins": [
+    {
+      "name": "autoresearch",
+      "description": "Autonomous experiment loop for any optimization target — runs experiments, logs results, keeps winners, discards losers. UserPromptSubmit hook keeps the agent in the loop.",
+      "category": "development",
+      "source": {
+        "source": "github",
+        "repo": "JinmooSeok-Dev/autoresearch-claude-code"
+      },
+      "homepage": "https://github.com/JinmooSeok-Dev/autoresearch-claude-code"
+    }
+  ]
+}

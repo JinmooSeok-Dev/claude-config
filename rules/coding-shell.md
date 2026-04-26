@@ -66,6 +66,50 @@ shell script를 GitHub Actions 등 workflow에서 호출할 때의 추가 규칙
   ```
 - workflow에서 전달받는 인자는 반드시 인용: `"$1"`, `"${INPUT_VALUE}"`
 
+## jq 활용 패턴
+- 빈 결과 감지는 `--exit-status`(`-e`): `kubectl get ... -o json | jq -e '.items[0]'`
+- raw 출력은 `-r`: `jq -r '.metadata.name'`
+- 멀티라인 변수 → JSON 안전 주입: `jq -n --arg msg "$multiline" '{message: $msg}'`
+- 복잡한 query는 함수형으로 분해: `jq 'def healthy: .status == "Ready"; .items[] | select(healthy)'`
+- 파이프 안의 jq 실패를 놓치지 않도록 `set -o pipefail` 필수
+- 시간 비교: `jq '... | select(.metadata.creationTimestamp | fromdate > now - 3600)'`
+
+## 색상 / 로그 helper
+색상은 stderr가 터미널일 때만 활성화 (CI/파이프 환경에서 escape 코드 노출 방지):
+```bash
+if [[ -t 2 ]]; then
+  readonly C_RED=$'\033[31m' C_YELLOW=$'\033[33m' C_GREEN=$'\033[32m' C_RESET=$'\033[0m'
+else
+  readonly C_RED='' C_YELLOW='' C_GREEN='' C_RESET=''
+fi
+
+log()  { printf '%s[INFO]%s  %s\n' "${C_GREEN}"  "${C_RESET}" "$*" >&2; }
+warn() { printf '%s[WARN]%s  %s\n' "${C_YELLOW}" "${C_RESET}" "$*" >&2; }
+die()  { printf '%s[FATAL]%s %s\n' "${C_RED}"    "${C_RESET}" "$*" >&2; exit 1; }
+```
+
+## Retry with backoff
+재시도 대상은 멱등 명령으로 한정한다 (POST 같은 비멱등 호출에 사용 금지):
+```bash
+retry() {
+  local max="${1:-5}" delay="${2:-2}" attempt=1
+  shift 2
+  until "$@"; do
+    if (( attempt >= max )); then
+      die "after ${max} attempts: $*"
+    fi
+    warn "attempt ${attempt}/${max} failed, retrying in ${delay}s: $*"
+    sleep "${delay}"
+    delay=$(( delay * 2 ))      # exponential backoff
+    attempt=$(( attempt + 1 ))
+  done
+}
+
+# 사용 예
+retry 5 2 kubectl wait --for=condition=Ready pod/foo --timeout=30s
+retry 3 1 curl -fsS "${URL}/health"
+```
+
 ## 검증
 - ShellCheck 필수 통과
 - 복잡한 스크립트(50줄 이상)는 별도 `.sh` 파일로 분리하여 lint 가능하게

@@ -61,6 +61,29 @@
 - 상세 규칙은 `~/.claude/rules/documentation.md` 참조
 - 핵심: Top-down 구조, 정량적 Problem Statement, User Scenario 기반, 출처 필수
 
+### Doc-PR fact verification 컨벤션 (round-N+1 핑퐁 방지)
+
+문서 PR 작성 시 다음 4가지를 **doc 단어를 코드와 1:1 매칭** 하는 식으로 검증한다. 검증 안 거치면 같은 류 코멘트가 round-2 / round-3 으로 반복된다 (실측: rebel-jinmoo/network-operator PR #38·#39·#40 의 round-1 코멘트 17개 중 11개가 이 컨벤션 위반).
+
+1. **컴포넌트 / 함수 / 변수 이름은 코드 의 정의 형 (definition form)**:
+   - reconciler 등 등록명 (`Name() string` 반환값 또는 spec field name) — 파일명 대신 등록명 사용. 예: `secondaryNetwork`/`moduleConfig` (✓) vs `secondary_network.go` 의 file path 를 prose 에서 인용 (✗).
+   - spec / CR field 경로는 **루트부터 경로 전체** 인용. 예: `spec.nodeFeatureDiscovery.deploy: Never` (✓) vs `nfd.deploy: Never` (shorthand, ✗).
+   - field 가 string 인지 struct 인지 명시 — `spec.X.image` 가 `ImageSpec` 객체면 어떤 inner field 를 채워야 하는지까지.
+
+2. **에러 메시지 / 동작 묘사는 코드 verbatim**:
+   - 에러 문구를 doc 에 인용할 때 `fmt.Errorf` / `errors.New` / `panic` 의 실제 인자를 그대로. 추측 금지. 예: `"NAD probe failed: <err>"` (✓) vs `"Multus required"` (잘못된 추측, ✗).
+   - 컴포넌트가 "X 를 한다" / "Y 를 자동으로 한다" 류 묘사는 해당 코드 path 를 직접 본 후만 작성.
+
+3. **cross-PR forward reference 금지 (또는 명시적 마커)**:
+   - 같은 시리즈의 다른 PR 의 helper / file / 함수를 main 의 현재 상태처럼 묘사하지 않는다.
+   - 부득이하면 `(planned, see PR #N)` 또는 `(landing in a parallel PR)` 명시. main HEAD 기준 사실만 단정.
+
+4. **단정 (assertion) 은 즉시 검증 가능한 형태**:
+   - "X 라서 Y 가 동작한다" 의 X 부분은 `grep` / `cat` / `dnf info` 로 1분 안에 확인 가능한 사실만. 추정은 `[불확실]` 또는 `[추정]` 표기.
+   - Dockerfile 에 패키지 인용 시 entitlement-free base image 에서 실제로 install 되는지 `docker run --rm <base> dnf info <pkg>` 로 사전 확인.
+
+위반 의심이면 `verifying-document-facts` skill 호출. 이미 PR open 후 round-1 review 받았다면 `/copilot-fix` 의 5.5 self-review pass 가 자동으로 catch 한다.
+
 ## Work Logging
 - `/logging-work` 스킬로 수행, 기록 시점은 사용자가 결정
 - 프로젝트당 `WORKLOG.md` 하나만 유지
